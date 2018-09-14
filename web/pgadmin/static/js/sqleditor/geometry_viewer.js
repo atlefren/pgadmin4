@@ -72,6 +72,42 @@ let GeometryViewer = {
   parse_data: parseData,
 };
 
+const availableLayers = [
+  {
+    name: 'Street',
+    tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+  },
+  {
+    name: 'Topography',
+    tileUrl: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    maxZoom: 17,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://viewfinderpanoramas.org" target="_blank">SRTM</a>, &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>',
+  },
+  {
+    name: 'Gray Style',
+    tileUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  },
+  {
+    name: 'Light Color',
+    tileUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  },
+  {
+    name: 'Dark Matter',
+    tileUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  },
+];
+
+
 function initMapComponent() {
   const geojsonMarkerOptions = {
     radius: 4,
@@ -102,44 +138,26 @@ function initMapComponent() {
     },
   });
   vectorLayer.addTo(lmap);
-  let baseLayersObj = {
-    'Empty': L.tileLayer(''),
-    'Street': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
-      }),
-    'Topography': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      {
-        maxZoom: 17,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>,' +
-          ' &copy; <a href="http://viewfinderpanoramas.org" target="_blank">SRTM</a>,' +
-          ' &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>',
-      }),
-    'Gray Style': L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png',
-      {
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>,' +
-          ' &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
-        subdomains: 'abcd',
-        maxZoom: 19,
-      }),
-    'Light Color': L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      {
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>,' +
-          ' &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
-        subdomains: 'abcd',
-        maxZoom: 19,
-      }),
-    'Dark Matter': L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}{r}.png',
-      {
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>,' +
-          ' &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
-        subdomains: 'abcd',
-        maxZoom: 19,
-      }),
-  };
+
+  let emptyLayer = L.tileLayer('');
+
+  //create a layers dictionary. Use _.pick to not pass in empty values as options
+  let baseLayersObj = availableLayers.reduce((acc, layer) => {
+    acc[layer.name] = L.tileLayer(layer.tileUrl , _.pick({
+      attribution: layer.attribution || undefined,
+      subdomains: layer.subdomains || undefined,
+      maxZoom: layer.maxZoom || 19,
+    }, _.identity));
+    return acc;
+  }, {'Empty': emptyLayer});
+
   let layerControl = L.control.layers(baseLayersObj);
-  let defaultBaseLayer = baseLayersObj.Street;
+
+  //default layer is first in list (or Empty if none is provided)
+  let defaultBaseLayer = availableLayers.length > 0
+    ? baseLayersObj[availableLayers[0].name]
+    : emptyLayer;
+
   let baseLayers = _.values(baseLayersObj);
 
   let infoControl = L.control({position: 'topright'});
