@@ -147,7 +147,12 @@ class _Preference(object):
             except Exception as e:
                 current_app.logger.exeception(e)
                 return self.default
-
+        if self._type == 'orderedlist':
+            try:
+                return json.loads(res.value)
+            except Exception as e:
+                current_app.logger.exeception(e)
+                return self.default
         return res.value
 
     def set(self, value):
@@ -213,6 +218,14 @@ class _Preference(object):
                 current_app.logger.exeception(e)
                 return False, gettext(
                     "Invalid value for a keyboard shortcut option."
+                )
+        elif self._type == 'orderedlist':
+            try:
+                value = json.dumps(value)
+            except Exception as e:
+                current_app.logger.exeception(e)
+                return False, gettext(
+                    "Invalid value for a ordered list option."
                 )
 
         pref = UserPrefTable.query.filter_by(
@@ -424,7 +437,7 @@ class Preferences(object):
         assert _type in (
             'boolean', 'integer', 'numeric', 'date', 'datetime',
             'options', 'multiline', 'switch', 'node', 'text',
-            'keyboardshortcut'
+            'keyboardshortcut', 'orderedlist'
         ), "Type cannot be found in the defined list!"
 
         (cat['preferences'])[name] = res = _Preference(

@@ -72,40 +72,15 @@ let GeometryViewer = {
   parse_data: parseData,
 };
 
-const availableLayers = [
-  {
-    name: 'Street',
-    tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
-  },
-  {
-    name: 'Topography',
-    tileUrl: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    maxZoom: 17,
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://viewfinderpanoramas.org" target="_blank">SRTM</a>, &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>',
-  },
-  {
-    name: 'Gray Style',
-    tileUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
-    subdomains: 'abcd',
-    maxZoom: 19,
-  },
-  {
-    name: 'Light Color',
-    tileUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
-    subdomains: 'abcd',
-    maxZoom: 19,
-  },
-  {
-    name: 'Dark Matter',
-    tileUrl: 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, &copy; <a href="http://cartodb.com/attributions" target="_blank">CartoDB</a>',
-    subdomains: 'abcd',
-    maxZoom: 19,
-  },
-];
+function getLayerList () {
+  let browser = window.opener ?
+    window.opener.pgAdmin.Browser
+    : window.top.pgAdmin.Browser;
+
+  let sqlEditPreferences = browser.get_preferences_for_module('sqleditor');
+
+  return sqlEditPreferences.available_background_layers;
+}
 
 
 function initMapComponent() {
@@ -140,6 +115,8 @@ function initMapComponent() {
   vectorLayer.addTo(lmap);
 
   let emptyLayer = L.tileLayer('');
+
+  let availableLayers = getLayerList();
 
   //create a layers dictionary. Use _.pick to not pass in empty values as options
   let baseLayersObj = availableLayers.reduce((acc, layer) => {

@@ -39,6 +39,8 @@ from pgadmin.utils.exception import ConnectionLost, SSHTunnelConnectionLost
 from pgadmin.utils.sqlautocomplete.autocomplete import SQLAutoComplete
 from pgadmin.tools.sqleditor.utils.query_tool_preferences import \
     RegisterQueryToolPreferences
+from pgadmin.tools.sqleditor.utils.geometry_viewer_preferences import \
+    RegisterGeometryViewerPreferences
 from pgadmin.tools.sqleditor.utils.query_tool_fs_utils import \
     read_file_generator
 from pgadmin.tools.sqleditor.utils.filter_dialog import FilterDialog
@@ -118,6 +120,7 @@ class SqlEditorModule(PgAdminModule):
 
     def register_preferences(self):
         RegisterQueryToolPreferences(self)
+        RegisterGeometryViewerPreferences(self)
 
 
 blueprint = SqlEditorModule(MODULE_NAME, __name__, static_url_path='/static')
