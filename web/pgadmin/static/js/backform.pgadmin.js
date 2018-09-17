@@ -934,7 +934,6 @@ define([
 
       this.undelegateEvents();
       this.$el.empty();
-      console.log(this.field)
       var field = _.defaults(this.field.toJSON(), this.defaults),
         attributes = this.model.toJSON(),
         attrArr = field.name.split('.'),
@@ -2733,12 +2732,12 @@ define([
       _.each(innerFields, function(fld) {
 
         var f = new Backform.Field(
-          _.extend({}, {
-            id: fld['name'],
-            name: fld['name'],
-            control: fld['type'],
-            label: fld['label'],
-          })
+            _.extend({}, {
+              id: fld['name'],
+              name: fld['name'],
+              control: fld['type'],
+              label: fld['label'],
+            })
           ),
           cntr = new (f.get('control')) ({
             field: f,
@@ -2779,20 +2778,75 @@ define([
     },
   });
 
-  var OrderedListItem = Backbone.Model.extend({});
+  var OrderedListItem = Backbone.Model.extend({
+
+    isColumnValid: function(name) {
+      var isRequired = this.collection.columns.find(c => c.name === name).required;
+      if (isRequired) {
+        return this.has(name) && !_.isUndefined(this.get(name)) && this.get(name) !== '';
+      }
+      return true;
+    },
+
+    validate: function () {
+      //find columns with errors
+      var errors = this.collection.columns
+        .filter(c => !this.isColumnValid(c.name), this)
+        .map(c => c.name);
+      if (errors.length) {
+        //revert all error cols to prev version
+        _.forEach(errors, error => {
+          this.set(error, this.previousAttributes()[error], {silent: true});
+        }, this);
+
+        //return the list of errors to make this.isValid() return false
+        return errors;
+      }
+    },
+  });
 
   var OrderedListItemCollection = Backbone.Collection.extend({
+
+    initialize: function(models, options) {
+      Backbone.Collection.prototype.initialize.apply(this, arguments);
+      //convenience to get the columns
+      this.columns = options.columns;
+    },
+
     model: OrderedListItem,
+
+  });
+
+  var ValidatingStringCell = Backgrid.Cell.extend({
+
+    className: 'string-cell',
+
+    formatter: Backgrid.StringFormatter,
+
+    render: function () {
+      Backgrid.Cell.prototype.render.apply(this, arguments);
+      var $el = this.$el;
+      if (!this.model.isColumnValid(this.column.get('name'))) {
+        $el.addClass('error');
+      } else {
+        $el.removeClass('error');
+      }
+      this.updateStateClassesMaybe();
+      this.delegateEvents();
+      return this;
+    },
   });
 
   var cellGridMap = {
-    text: 'string',
+    text: ValidatingStringCell,
     int: 'integer',
   };
 
   function formToCell(form) {
-    form.cell = cellGridMap[form.type];
-    return form;
+    var f = _.clone(form);
+    f.cell = cellGridMap[form.type];
+    f.editable = true;
+    return f;
   }
 
   var MoveCell = Backgrid.Cell.extend({
@@ -2828,13 +2882,13 @@ define([
     render: function() {
       var index = this.model.collection.indexOf(this.model);
       var btns = [];
-
-      if (index > 0) {
+      var isValid = this.model.isValid();
+      if (isValid && index > 0) {
         btns.push('<i id="up" class="fa fa-arrow-up" title="' + _('Move row up') + '"></i>');
       } else {
         btns.push('<i class="icon-blank"></i>');
       }
-      if (index < this.model.collection.length -1) {
+      if (isValid && index < this.model.collection.length -1) {
         btns.push('<i id="down" class="fa fa-arrow-down" title="' + _('Move row down') + '"></i>');
       }
       this.$el.empty();
@@ -2847,9 +2901,8 @@ define([
   Backform.OrderedListControl = Backform.Control.extend({
     initialize: function () {
       Backform.Control.prototype.initialize.apply(this, arguments);
-      this.collection = new OrderedListItemCollection(this.model.get('value'));
-      this.collection.on('change');
-
+      var columns = _.map(this.field.get('fields'), formToCell);
+      this.collection = new OrderedListItemCollection(this.model.get('value'), {columns: columns});
       this.listenTo(this.collection, 'change', this.onChange);
       this.listenTo(this.collection, 'remove', this.onChange);
       this.listenTo(this.collection, 'add', this.onChange);
@@ -2877,14 +2930,17 @@ define([
     },
 
     onChange: function () {
-      this.model.set('value', this.collection.toJSON());
+      var data = this.collection
+        .filter(m => m.isValid())
+        .map(m => m.attributes);
+      this.model.set('value', data);
     },
 
     render: function () {
       if (this.grid) {
         this.grid.remove();
       }
-      var columns = _.map(this.field.get('fields'), formToCell);
+
       var extraColumns = [
         {
           name: 'pg-backform-delete',
@@ -2894,7 +2950,7 @@ define([
           cell: MoveCell,
         },
         {
-          name: 'pg-backform-delete',
+          name: 'pg-backform-move',
           label: '',
           cell: Backgrid.Extension.DeleteCell,
           editable: false,
@@ -2903,9 +2959,8 @@ define([
         },
       ];
 
-      columns = columns.concat();
       this.grid = new Backgrid.Grid({
-        columns: extraColumns.concat(columns),
+        columns: extraColumns.concat(this.collection.columns),
         collection: this.collection,
       });
 
@@ -2913,7 +2968,7 @@ define([
       this.$el.find('div.table').append(this.grid.render().$el);
       this.delegateEvents();
       return this;
-    },
+    }
 
   });
 

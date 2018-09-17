@@ -15,27 +15,29 @@ fields = [
     {
         'name': 'name',
         'type': 'text',
-        'label': gettext('Layer Name')
+        'label': gettext('Layer Name'),
+        'required': True,
     },
     {
         'name': 'tileUrl',
         'type': 'text',
-        'label': gettext('Tile Url')
+        'label': gettext('Tile Url'),
+        'required': True,
     },
     {
         'name': 'maxZoom',
         'type': 'int',
-        'label': gettext('Max Zoom level')
+        'label': gettext('Max Zoom level'),
     },
     {
         'name': 'attribution',
         'type': 'text',
-        'label': gettext('Attribution text')
+        'label': gettext('Attribution text'),
     },
     {
         'name': 'subdomains',
         'type': 'text',
-        'label': gettext('subdomains for url')
+        'label': gettext('subdomains for url'),
     },
 ]
 
