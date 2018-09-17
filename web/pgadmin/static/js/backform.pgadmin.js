@@ -2779,5 +2779,227 @@ define([
     },
   });
 
+  var OrderedListItem = Backform.Control.extend({
+
+    initialize: function (options) {
+      Backform.Control.prototype.initialize.apply(this, arguments);
+      this.innerModel = new Backbone.Model();
+      this.onChange = options.onChange;
+      this.onDelete = options.onDelete;
+      this.onMove = options.onMove;
+      this.onAdd = options.onAdd;
+    },
+    tagName: 'tr',
+
+    onInnerModelChange: function() {
+      if (this.model.has('idx')) {
+        this.onChange(this.model.get('idx'), this.innerModel.toJSON());
+      } else {
+        this.onAdd(this.innerModel.toJSON());
+      }
+    },
+
+    render: function() {
+      var self = this,
+        initial_value = {},
+        values = self.model.get('value');
+
+      _.each(self.field.get('fields'), function(field) {
+        initial_value[field['name']] = values[field['name']];
+      });
+
+      self.innerModel.set(initial_value);
+
+      self.listenTo(self.innerModel, 'change', self.onInnerModelChange);
+
+      var moveButtons = [];
+      if (this.model.get('canMoveUp')) {
+        var upBtn = $('<button type="button" class="btn btn-xs btn-default fa fa-sm fa-arrow-up"></button>');
+        upBtn.on('click', function () {
+          self.onMove(self.model.get('idx'), -1);
+        });
+        moveButtons.push(upBtn);
+      }
+      if (this.model.get('canMoveDown')) {
+        var downBtn = $('<button type="button" class="btn btn-xs btn-default fa fa-sm fa-arrow-down"></button>');
+        downBtn.on('click', function () {
+          self.onMove(self.model.get('idx'), 1);
+        });
+        moveButtons.push(downBtn);
+      }
+
+      self.$el.append($('<td></td>').append(moveButtons));
+      _.each(self.field.get('fields'), function(fld) {
+
+        var f = new Backform.Field(
+            _.extend({}, {
+              id: fld['name'],
+              name: fld['name'],
+              control: Backform.getMappedControl(fld['type'], 'edit'),
+              label: fld['label'],
+            })
+          ),
+          cntr = new (f.get('control')) ({
+            field: f,
+            model: self.innerModel,
+          });
+
+        cntr.render();
+        cntr.$el.find('label.control-label').remove();
+        self.$el.append($('<td></td>').append(cntr.$el));
+      });
+
+      var deleteBtn = $('<button type="button" class="btn btn-xs btn-danger fa fa-sm fa-times"></button>');
+
+      deleteBtn.on('click', function () {
+        self.onDelete(self.model.get('idx'), null);
+      });
+
+      self.$el.append($('<td></td>').append(deleteBtn));
+      self.$el.attr('class', '');
+
+      return self;
+    },
+
+  });
+
+  Backform.OrderedListControl = Backform.Control.extend({
+
+    initialize: function() {
+      Backform.Control.prototype.initialize.apply(this, arguments);
+      this.controls = [];
+    },
+
+    cleanup: function() {
+      _.each(this.controls, function(c) {
+        c.remove();
+      });
+      this.controls.length = 0;
+    },
+
+    template: _.template([
+      '<label class="<%=Backform.controlLabelClassName%>"><%=label%></label>',
+      '<div class="<%=Backform.controlsClassName%>">',
+      '</div>',
+    ].join('\n')),
+
+    tableTemplate: _.template([
+      '<table style="width: 100%;">',
+      '<thead>',
+      '<tr>',
+      '<th></th>',
+      '<% _.map(fields, function (field) {%>',
+      '<th><%=field.label%></th>',
+      '<%})%>',
+      '<th></th>',
+      '</tr>',
+      '</thead>',
+      '<tbody>',
+      '</tbody>',
+      '</table>',
+    ].join('\n')),
+
+    onChange: function (idx, data) {
+      var list = _.clone(this.model.get('value'));
+      list[idx] = data;
+      this.model.set('value', list);
+      this.render();
+    },
+
+    onDelete: function (idx) {
+      var list = _.clone(this.model.get('value'));
+      list.splice(idx, 1);
+      this.model.set('value', list);
+      this.render();
+    },
+
+    onMove: function (idx, direction) {
+      var list = _.clone(this.model.get('value'));
+      var newPos = idx + direction;
+      if (newPos >= 0 && newPos < list.length) {
+        var element = list[idx];
+        list.splice(idx, 1);
+        list.splice(newPos, 0, element);
+        this.model.set('value', list);
+        this.render();
+      }
+    },
+
+    onAdd: function (data) {
+      var list = _.clone(this.model.get('value'));
+      list.push(data);
+      this.model.set('value', list);
+      this.render();
+    },
+
+    render: function() {
+      var self = this,
+        initial_value = {},
+        field = _.defaults(this.field.toJSON(), this.defaults),
+        value = self.model.get(field['name']),
+        innerFields = field['fields'];
+
+      _.each(innerFields, function(field) {
+        initial_value[field['name']] = value[field['name']];
+      });
+      this.cleanup();
+      this.$el.empty();
+
+      this.$el.html(self.template(field)).addClass(field.name);
+
+      var table = $(self.tableTemplate({fields: innerFields}));
+
+      var values = self.model.get('value');
+      self.controls = _.map(values, function (row, idx) {
+        return new OrderedListItem({
+          field: new Backbone.Model({fields: innerFields, name: 'row_' + idx}),
+          model: new Backbone.Model({
+            errorModel: new Backbone.Model(),
+            value: row,
+            idx: idx,
+            canMoveDown: idx < values.length - 1,
+            canMoveUp: idx > 0,
+          }),
+          onChange: _.bind(self.onChange, self),
+          onDelete: _.bind(self.onDelete, self),
+          onMove: _.bind(self.onMove, self),
+          onAdd: _.bind(self.onAdd, self),
+        });
+      });
+      self.controls.push(new OrderedListItem({
+        field: new Backbone.Model({fields: innerFields, name: 'row_new'}),
+        model: new Backbone.Model({
+          errorModel: new Backbone.Model(),
+          canMoveDown: false,
+          canMoveUp: false,
+          value: _.reduce(innerFields, function (acc, field) {
+            acc[field.name] = undefined;
+            return acc;
+          }, {}),
+        }),
+        onChange: _.bind(self.onChange, self),
+        onDelete: _.bind(self.onDelete, self),
+        onMove: _.bind(self.onMove, self),
+        onAdd: _.bind(self.onAdd, self),
+      }));
+
+
+      table.find('tbody').append(_.map(self.controls, function (c) {
+        return c.render().$el;
+      }));
+
+      var $container = $(self.$el.find('.pgadmin-controls'));
+      $container.append(table);
+
+      return self;
+    },
+
+    remove: function() {
+      /* First do the clean up */
+      this.cleanup();
+      Backform.Control.prototype.remove.apply(this, arguments);
+    },
+  });
+
   return Backform;
 });

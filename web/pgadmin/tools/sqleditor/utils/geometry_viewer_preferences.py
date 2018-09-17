@@ -24,7 +24,7 @@ fields = [
     },
     {
         'name': 'maxZoom',
-        'type': 'integer',
+        'type': 'int',
         'label': gettext('Max Zoom level')
     },
     {

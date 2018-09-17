@@ -112,7 +112,6 @@ define('pgadmin.preferences', [
            * list of preferences using the Backform Field, Control.
            */
           _.each(prefs, function(p) {
-
             var m = preferences.get(p.id);
             m.errorModel = new Backbone.Model();
             var f = new Backform.Field(
@@ -259,6 +258,8 @@ define('pgadmin.preferences', [
               return 'switch';
             case 'keyboardshortcut':
               return 'keyboardShortcut';
+            case 'orderedlist':
+              return 'orderedList';
             default:
               if (console && console.warn) {
                   // Warning for developer only.
@@ -448,7 +449,6 @@ define('pgadmin.preferences', [
                   modulesChanged[pref.module] = true;
                 }
               });
-
               // Refresh preferences cache
               pgBrowser.cache_preferences(modulesChanged);
             }
