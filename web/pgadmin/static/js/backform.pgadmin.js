@@ -934,7 +934,7 @@ define([
 
       this.undelegateEvents();
       this.$el.empty();
-
+      console.log(this.field)
       var field = _.defaults(this.field.toJSON(), this.defaults),
         attributes = this.model.toJSON(),
         attrArr = field.name.split('.'),
@@ -2779,226 +2779,142 @@ define([
     },
   });
 
-  var OrderedListItem = Backform.Control.extend({
+  var OrderedListItem = Backbone.Model.extend({});
+
+  var OrderedListItemCollection = Backbone.Collection.extend({
+    model: OrderedListItem,
+  });
+
+  var cellGridMap = {
+    text: 'string',
+    int: 'integer',
+  };
+
+  function formToCell(form) {
+    form.cell = cellGridMap[form.type];
+    return form;
+  }
+
+  var MoveCell = Backgrid.Cell.extend({
 
     initialize: function (options) {
-      Backform.Control.prototype.initialize.apply(this, arguments);
-      this.innerModel = new Backbone.Model();
-      this.onChange = options.onChange;
-      this.onDelete = options.onDelete;
-      this.onMove = options.onMove;
-      this.onAdd = options.onAdd;
+      Backgrid.Cell.prototype.initialize.apply(this, arguments);
+      this.options = _.extend(options, {moveDirection: 'up'});
     },
-    tagName: 'tr',
 
-    onInnerModelChange: function() {
-      if (this.model.has('idx')) {
-        this.onChange(this.model.get('idx'), this.innerModel.toJSON());
-      } else {
-        this.onAdd(this.innerModel.toJSON());
-      }
+    events: {
+      'click .fa-arrow-up': 'moveUp',
+      'click .fa-arrow-down': 'moveDown',
+    },
+
+    moveUp: function(e) {
+      e.preventDefault();
+      this.move(-1);
+    },
+
+    moveDown: function(e) {
+      e.preventDefault();
+      this.move(1);
+    },
+
+    move: function (direction) {
+      var collection = this.model.collection;
+      var index = collection.indexOf(this.model);
+      var newIndex = index + direction;
+      collection.remove(this.model, {silent: true});
+      collection.add(this.model, {at: newIndex});
     },
 
     render: function() {
-      var self = this,
-        initial_value = {},
-        values = self.model.get('value');
+      var index = this.model.collection.indexOf(this.model);
+      var btns = [];
 
-      _.each(self.field.get('fields'), function(field) {
-        initial_value[field['name']] = values[field['name']];
-      });
-
-      self.innerModel.set(initial_value);
-
-      self.listenTo(self.innerModel, 'change', self.onInnerModelChange);
-
-      var moveButtons = [];
-      if (this.model.get('canMoveUp')) {
-        var upBtn = $('<button type="button" class="btn btn-xs btn-default fa fa-sm fa-arrow-up"></button>');
-        upBtn.on('click', function () {
-          self.onMove(self.model.get('idx'), -1);
-        });
-        moveButtons.push(upBtn);
+      if (index > 0) {
+        btns.push('<i id="up" class="fa fa-arrow-up" title="' + _('Move row up') + '"></i>');
+      } else {
+        btns.push('<i class="icon-blank"></i>');
       }
-      if (this.model.get('canMoveDown')) {
-        var downBtn = $('<button type="button" class="btn btn-xs btn-default fa fa-sm fa-arrow-down"></button>');
-        downBtn.on('click', function () {
-          self.onMove(self.model.get('idx'), 1);
-        });
-        moveButtons.push(downBtn);
+      if (index < this.model.collection.length -1) {
+        btns.push('<i id="down" class="fa fa-arrow-down" title="' + _('Move row down') + '"></i>');
       }
-
-      self.$el.append($('<td></td>').append(moveButtons));
-      _.each(self.field.get('fields'), function(fld) {
-
-        var f = new Backform.Field(
-            _.extend({}, {
-              id: fld['name'],
-              name: fld['name'],
-              control: Backform.getMappedControl(fld['type'], 'edit'),
-              label: fld['label'],
-            })
-          ),
-          cntr = new (f.get('control')) ({
-            field: f,
-            model: self.innerModel,
-          });
-
-        cntr.render();
-        cntr.$el.find('label.control-label').remove();
-        self.$el.append($('<td></td>').append(cntr.$el));
-      });
-
-      var deleteBtn = $('<button type="button" class="btn btn-xs btn-danger fa fa-sm fa-times"></button>');
-
-      deleteBtn.on('click', function () {
-        self.onDelete(self.model.get('idx'), null);
-      });
-
-      self.$el.append($('<td></td>').append(deleteBtn));
-      self.$el.attr('class', '');
-
-      return self;
+      this.$el.empty();
+      this.$el.html(btns.join('\n'));
+      this.delegateEvents();
+      return this;
     },
-
   });
 
   Backform.OrderedListControl = Backform.Control.extend({
-
-    initialize: function() {
+    initialize: function () {
       Backform.Control.prototype.initialize.apply(this, arguments);
-      this.controls = [];
+      this.collection = new OrderedListItemCollection(this.model.get('value'));
+      this.collection.on('change');
+
+      this.listenTo(this.collection, 'change', this.onChange);
+      this.listenTo(this.collection, 'remove', this.onChange);
+      this.listenTo(this.collection, 'add', this.onChange);
     },
 
-    cleanup: function() {
-      _.each(this.controls, function(c) {
-        c.remove();
-      });
-      this.controls.length = 0;
+    events: {
+      'click .add': 'addRow',
     },
 
     template: _.template([
-      '<label class="<%=Backform.controlLabelClassName%>"><%=label%></label>',
-      '<div class="<%=Backform.controlsClassName%>">',
+      '<div>',
+      '  <label class="<%=Backform.controlLabelClassName%>"><%=label%></label>',
+      '<div class="subnode-header">',
+      '  <button class="btn-sm btn-default add fa fa-plus" title="' + _('Add new row') + '">Add</button>',
+      '</div>',
+      '  <div class="table"></div>',
+      '  <% if (helpMessage && helpMessage.length) { %>',
+      '  <span class="<%=Backform.helpMessageClassName%>"><%=helpMessage%></span>',
+      '  <% } %>',
       '</div>',
     ].join('\n')),
 
-    tableTemplate: _.template([
-      '<table style="width: 100%;">',
-      '<thead>',
-      '<tr>',
-      '<th></th>',
-      '<% _.map(fields, function (field) {%>',
-      '<th><%=field.label%></th>',
-      '<%})%>',
-      '<th></th>',
-      '</tr>',
-      '</thead>',
-      '<tbody>',
-      '</tbody>',
-      '</table>',
-    ].join('\n')),
-
-    onChange: function (idx, data) {
-      var list = _.clone(this.model.get('value'));
-      list[idx] = data;
-      this.model.set('value', list);
-      this.render();
+    addRow: function () {
+      this.collection.add(new this.collection.model());
     },
 
-    onDelete: function (idx) {
-      var list = _.clone(this.model.get('value'));
-      list.splice(idx, 1);
-      this.model.set('value', list);
-      this.render();
+    onChange: function () {
+      this.model.set('value', this.collection.toJSON());
     },
 
-    onMove: function (idx, direction) {
-      var list = _.clone(this.model.get('value'));
-      var newPos = idx + direction;
-      if (newPos >= 0 && newPos < list.length) {
-        var element = list[idx];
-        list.splice(idx, 1);
-        list.splice(newPos, 0, element);
-        this.model.set('value', list);
-        this.render();
+    render: function () {
+      if (this.grid) {
+        this.grid.remove();
       }
-    },
+      var columns = _.map(this.field.get('fields'), formToCell);
+      var extraColumns = [
+        {
+          name: 'pg-backform-delete',
+          label: '',
+          editable: false,
+          cell_priority: -1,
+          cell: MoveCell,
+        },
+        {
+          name: 'pg-backform-delete',
+          label: '',
+          cell: Backgrid.Extension.DeleteCell,
+          editable: false,
+          cell_priority: -1,
+          canDeleteRow: true,
+        },
+      ];
 
-    onAdd: function (data) {
-      var list = _.clone(this.model.get('value'));
-      list.push(data);
-      this.model.set('value', list);
-      this.render();
-    },
-
-    render: function() {
-      var self = this,
-        initial_value = {},
-        field = _.defaults(this.field.toJSON(), this.defaults),
-        value = self.model.get(field['name']),
-        innerFields = field['fields'];
-
-      _.each(innerFields, function(field) {
-        initial_value[field['name']] = value[field['name']];
+      columns = columns.concat();
+      this.grid = new Backgrid.Grid({
+        columns: extraColumns.concat(columns),
+        collection: this.collection,
       });
-      this.cleanup();
-      this.$el.empty();
 
-      this.$el.html(self.template(field)).addClass(field.name);
-
-      var table = $(self.tableTemplate({fields: innerFields}));
-
-      var values = self.model.get('value');
-      self.controls = _.map(values, function (row, idx) {
-        return new OrderedListItem({
-          field: new Backbone.Model({fields: innerFields, name: 'row_' + idx}),
-          model: new Backbone.Model({
-            errorModel: new Backbone.Model(),
-            value: row,
-            idx: idx,
-            canMoveDown: idx < values.length - 1,
-            canMoveUp: idx > 0,
-          }),
-          onChange: _.bind(self.onChange, self),
-          onDelete: _.bind(self.onDelete, self),
-          onMove: _.bind(self.onMove, self),
-          onAdd: _.bind(self.onAdd, self),
-        });
-      });
-      self.controls.push(new OrderedListItem({
-        field: new Backbone.Model({fields: innerFields, name: 'row_new'}),
-        model: new Backbone.Model({
-          errorModel: new Backbone.Model(),
-          canMoveDown: false,
-          canMoveUp: false,
-          value: _.reduce(innerFields, function (acc, field) {
-            acc[field.name] = undefined;
-            return acc;
-          }, {}),
-        }),
-        onChange: _.bind(self.onChange, self),
-        onDelete: _.bind(self.onDelete, self),
-        onMove: _.bind(self.onMove, self),
-        onAdd: _.bind(self.onAdd, self),
-      }));
-
-
-      table.find('tbody').append(_.map(self.controls, function (c) {
-        return c.render().$el;
-      }));
-
-      var $container = $(self.$el.find('.pgadmin-controls'));
-      $container.append(table);
-
-      return self;
+      this.$el.html(this.template(this.field.toJSON()));
+      this.$el.find('div.table').append(this.grid.render().$el);
+      this.delegateEvents();
+      return this;
     },
 
-    remove: function() {
-      /* First do the clean up */
-      this.cleanup();
-      Backform.Control.prototype.remove.apply(this, arguments);
-    },
   });
 
   return Backform;

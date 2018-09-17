@@ -7,3 +7,8 @@
   user-select: none;
   cursor: default;
 }
+
+.icon-blank::before {
+  width: 1em;
+  content: ' ';
+}
