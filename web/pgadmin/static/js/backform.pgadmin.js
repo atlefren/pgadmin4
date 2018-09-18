@@ -2884,12 +2884,12 @@ define([
       var btns = [];
       var isValid = this.model.isValid();
       if (isValid && index > 0) {
-        btns.push('<i id="up" class="fa fa-arrow-up" title="' + _('Move row up') + '"></i>');
+        btns.push('<i id="up" class="fa fa-arrow-up fa-clickable" title="' + _('Move row up') + '"></i>');
       } else {
-        btns.push('<i class="icon-blank"></i>');
+        btns.push('<i class="fa fa-arrow-down fa-hidden"></i>');
       }
       if (isValid && index < this.model.collection.length -1) {
-        btns.push('<i id="down" class="fa fa-arrow-down" title="' + _('Move row down') + '"></i>');
+        btns.push('<i id="down" class="fa fa-arrow-down fa-clickable" title="' + _('Move row down') + '"></i>');
       }
       this.$el.empty();
       this.$el.html(btns.join('\n'));
@@ -2908,16 +2908,9 @@ define([
       this.listenTo(this.collection, 'add', this.onChange);
     },
 
-    events: {
-      'click .add': 'addRow',
-    },
-
     template: _.template([
       '<div>',
       '  <label class="<%=Backform.controlLabelClassName%>"><%=label%></label>',
-      '<div class="subnode-header">',
-      '  <button class="btn-sm btn-default add fa fa-plus" title="' + _('Add new row') + '">Add</button>',
-      '</div>',
       '  <div class="table"></div>',
       '  <% if (helpMessage && helpMessage.length) { %>',
       '  <span class="<%=Backform.helpMessageClassName%>"><%=helpMessage%></span>',
@@ -2943,14 +2936,14 @@ define([
 
       var extraColumns = [
         {
-          name: 'pg-backform-delete',
+          name: 'pg-backform-move',
           label: '',
           editable: false,
           cell_priority: -1,
           cell: MoveCell,
         },
         {
-          name: 'pg-backform-move',
+          name: 'pg-backform-delete',
           label: '',
           cell: Backgrid.Extension.DeleteCell,
           editable: false,
@@ -2964,11 +2957,18 @@ define([
         collection: this.collection,
       });
 
+
+      var addBtn = $('<button class="add-btn" title="' + _('Add new row') + '"><i class="fa fa-plus"></i>&nbsp;' + _('Add') + '</button>');
+      addBtn.on('click', _.bind(this.addRow, this));
+
+      var gridEl = this.grid.render().$el;
+      gridEl.find('th.pg-backform-move').empty().append(addBtn);
       this.$el.html(this.template(this.field.toJSON()));
-      this.$el.find('div.table').append(this.grid.render().$el);
+      this.$el.find('div.table').append(gridEl);
+
       this.delegateEvents();
       return this;
-    }
+    },
 
   });
 
