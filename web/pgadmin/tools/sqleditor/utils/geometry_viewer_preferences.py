@@ -27,17 +27,17 @@ fields = [
     {
         'name': 'maxZoom',
         'type': 'int',
-        'label': gettext('Max Zoom level'),
+        'label': gettext('Max Zoom'),
     },
     {
         'name': 'attribution',
         'type': 'text',
-        'label': gettext('Attribution text'),
+        'label': gettext('Attribution'),
     },
     {
         'name': 'subdomains',
         'type': 'text',
-        'label': gettext('subdomains for url'),
+        'label': gettext('Subdomains'),
     },
 ]
 
@@ -80,7 +80,7 @@ def RegisterGeometryViewerPreferences(self):
         gettext("Map background layers"), 'orderedlist', default_layers,
         category_label=gettext('Geometry Viewer'),
         help_str=gettext(
-            'Description here'
+            'Add a new background layer for the map by entering a valid XYZ Tiles Url and a name. Other options relate to Leaflet TileLayer.'
         ),
         fields=fields
     )
