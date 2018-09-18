@@ -32,3 +32,23 @@
     z-index: 3;
   }
 }
+
+
+
+.fa-hidden {
+  visibility: hidden;
+}
+
+.fa-clickable { 
+  cursor: pointer; 
+}
+
+button.add-btn {
+    border: 2px solid #cccccc !important;
+    background-color: #e8e8e8 !important;
+    font-size: 12px;
+    border-radius: 5px 5px 5px 5px;
+    color: #000 !important;
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+}
